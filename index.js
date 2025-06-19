@@ -18,7 +18,7 @@ app.post('/download', async (req, res) => {
     res.setHeader('Content-Type', 'video/mp4');
 
     const ytDlp = spawn('yt-dlp', [
-      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '-f', 'bv*+ba/best',
       '--merge-output-format', 'mp4',
       '-o', '-', // output to stdout
       url
@@ -26,21 +26,14 @@ app.post('/download', async (req, res) => {
 
     ytDlp.stdout.pipe(res);
 
-    ytDlp.stderr.on('data', data => {
-      console.error('[yt-dlp]', data.toString());
-    });
-
+    ytDlp.stderr.on('data', data => console.error('[yt-dlp]', data.toString()));
     ytDlp.on('error', err => {
       console.error('[yt-dlp error]', err);
-      res.status(500).end('yt-dlp error');
+      res.status(500).json({ error: 'yt-dlp failed to start' });
     });
-
     ytDlp.on('close', code => {
-      if (code !== 0) {
-        console.error(`[yt-dlp exited with code ${code}]`);
-      }
+      if (code !== 0) console.error(`[yt-dlp exited with code ${code}]`);
     });
-
   } catch (err) {
     console.error('[Unhandled Error]', err);
     res.status(500).json({ error: 'Unexpected server error' });
@@ -48,5 +41,5 @@ app.post('/download', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('✅ YouTube downloader running on port 3000');
+  console.log('✅ YouTube Downloader running on port 3000');
 });
