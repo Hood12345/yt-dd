@@ -18,30 +18,21 @@ app.post('/download', async (req, res) => {
     res.setHeader('Content-Type', 'video/mp4');
 
     const ytDlp = spawn('yt-dlp', [
-      '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best',
-      '-o', '-', // stdout stream
+      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '--merge-output-format', 'mp4',
+      '-o', '-', // output to stdout
       url
     ]);
 
-    const ffmpeg = spawn('ffmpeg', [
-      '-i', 'pipe:0',
-      '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov',
-      '-loglevel', 'quiet',
-      'pipe:1'
-    ]);
+    ytDlp.stdout.pipe(res);
 
-    ytDlp.stderr.on('data', data => console.error('[yt-dlp]', data.toString()));
-    ffmpeg.stderr.on('data', data => console.error('[ffmpeg]', data.toString()));
+    ytDlp.stderr.on('data', data => {
+      console.error('[yt-dlp]', data.toString());
+    });
 
     ytDlp.on('error', err => {
       console.error('[yt-dlp error]', err);
-      return res.status(500).json({ error: 'yt-dlp failed to start' });
-    });
-
-    ffmpeg.on('error', err => {
-      console.error('[ffmpeg error]', err);
-      return res.status(500).json({ error: 'ffmpeg failed to start' });
+      res.status(500).end('yt-dlp error');
     });
 
     ytDlp.on('close', code => {
@@ -50,15 +41,6 @@ app.post('/download', async (req, res) => {
       }
     });
 
-    ffmpeg.on('close', code => {
-      if (code !== 0) {
-        console.error(`[ffmpeg exited with code ${code}]`);
-      }
-    });
-
-    ytDlp.stdout.pipe(ffmpeg.stdin);
-    ffmpeg.stdout.pipe(res);
-
   } catch (err) {
     console.error('[Unhandled Error]', err);
     res.status(500).json({ error: 'Unexpected server error' });
@@ -66,5 +48,5 @@ app.post('/download', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('✅ Streaming downloader running on port 3000');
+  console.log('✅ YouTube downloader running on port 3000');
 });
