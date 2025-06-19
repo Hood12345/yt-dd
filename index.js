@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -13,31 +15,21 @@ app.post('/download', async (req, res) => {
     return res.status(400).json({ error: 'Invalid YouTube URL' });
   }
 
-  try {
-    res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
-    res.setHeader('Content-Type', 'video/mp4');
+  const fileName = `video_${Date.now()}.mp4`;
+  const filePath = path.join(__dirname, fileName);
 
-    const ytDlp = spawn('yt-dlp', [
-      '-f', 'bv*+ba/best',
-      '--merge-output-format', 'mp4',
-      '-o', '-', // output to stdout
-      url
-    ]);
+  // ✅ Updated line to fetch best video+audio and merge to MP4
+  exec(`yt-dlp -f "bv*+ba/best" --merge-output-format mp4 -o "${filePath}" "${url}"`, (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).json({ error: 'Download failed', details: stderr || error.message });
+    }
 
-    ytDlp.stdout.pipe(res);
-
-    ytDlp.stderr.on('data', data => console.error('[yt-dlp]', data.toString()));
-    ytDlp.on('error', err => {
-      console.error('[yt-dlp error]', err);
-      res.status(500).json({ error: 'yt-dlp failed to start' });
+    // Send the video file
+    res.download(filePath, fileName, (err) => {
+      // Clean up the downloaded file after serving it
+      fs.unlink(filePath, () => {});
     });
-    ytDlp.on('close', code => {
-      if (code !== 0) console.error(`[yt-dlp exited with code ${code}]`);
-    });
-  } catch (err) {
-    console.error('[Unhandled Error]', err);
-    res.status(500).json({ error: 'Unexpected server error' });
-  }
+  });
 });
 
 app.listen(3000, () => {
