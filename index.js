@@ -13,38 +13,58 @@ app.post('/download', async (req, res) => {
     return res.status(400).json({ error: 'Invalid YouTube URL' });
   }
 
-  // Set headers for streaming download
-  res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
-  res.setHeader('Content-Type', 'video/mp4');
+  try {
+    res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
+    res.setHeader('Content-Type', 'video/mp4');
 
-  // Stream video+audio merged from yt-dlp through ffmpeg
-  const ytDlp = spawn('yt-dlp', [
-    '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best',
-    '-o', '-', // Output to stdout
-    url
-  ]);
+    const ytDlp = spawn('yt-dlp', [
+      '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best',
+      '-o', '-', // stdout stream
+      url
+    ]);
 
-  const ffmpeg = spawn('ffmpeg', [
-    '-i', 'pipe:0',
-    '-f', 'mp4',
-    '-movflags', 'frag_keyframe+empty_moov',
-    '-loglevel', 'quiet',
-    'pipe:1'
-  ]);
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', 'pipe:0',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov',
+      '-loglevel', 'quiet',
+      'pipe:1'
+    ]);
 
-  ytDlp.stdout.pipe(ffmpeg.stdin);
-  ffmpeg.stdout.pipe(res);
+    ytDlp.stderr.on('data', data => console.error('[yt-dlp]', data.toString()));
+    ffmpeg.stderr.on('data', data => console.error('[ffmpeg]', data.toString()));
 
-  ytDlp.stderr.on('data', data => console.error('yt-dlp error:', data.toString()));
-  ffmpeg.stderr.on('data', data => console.error('ffmpeg error:', data.toString()));
+    ytDlp.on('error', err => {
+      console.error('[yt-dlp error]', err);
+      return res.status(500).json({ error: 'yt-dlp failed to start' });
+    });
 
-  ytDlp.on('error', err => {
-    console.error('yt-dlp failed:', err);
-    res.status(500).end('yt-dlp error');
-  });
+    ffmpeg.on('error', err => {
+      console.error('[ffmpeg error]', err);
+      return res.status(500).json({ error: 'ffmpeg failed to start' });
+    });
 
-  ffmpeg.on('error', err => {
-    console.error('ffmpeg failed:', err);
-    res.status(500).end('ffmpeg error');
-  });
+    ytDlp.on('close', code => {
+      if (code !== 0) {
+        console.error(`[yt-dlp exited with code ${code}]`);
+      }
+    });
+
+    ffmpeg.on('close', code => {
+      if (code !== 0) {
+        console.error(`[ffmpeg exited with code ${code}]`);
+      }
+    });
+
+    ytDlp.stdout.pipe(ffmpeg.stdin);
+    ffmpeg.stdout.pipe(res);
+
+  } catch (err) {
+    console.error('[Unhandled Error]', err);
+    res.status(500).json({ error: 'Unexpected server error' });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('✅ Streaming downloader running on port 3000');
 });
