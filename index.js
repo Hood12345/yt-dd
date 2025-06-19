@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { spawn } = require('child_process');
 
 const app = express();
 app.use(cors());
@@ -15,23 +13,38 @@ app.post('/download', async (req, res) => {
     return res.status(400).json({ error: 'Invalid YouTube URL' });
   }
 
-  const fileName = `video_${Date.now()}.mp4`;
-  const filePath = path.join(__dirname, fileName);
+  // Set headers for streaming download
+  res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
+  res.setHeader('Content-Type', 'video/mp4');
 
-  // Run yt-dlp to download the video to filePath
-  exec(`yt-dlp -f 'best[ext=mp4]' -o "${filePath}" "${url}"`, (error, stdout, stderr) => {
-    if (error) {
-      return res.status(500).json({ error: 'Download failed', details: stderr || error.message });
-    }
+  // Stream video+audio merged from yt-dlp through ffmpeg
+  const ytDlp = spawn('yt-dlp', [
+    '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best',
+    '-o', '-', // Output to stdout
+    url
+  ]);
 
-    // Send the video file
-    res.download(filePath, fileName, (err) => {
-      // Clean up the downloaded file after serving it
-      fs.unlink(filePath, () => {});
-    });
+  const ffmpeg = spawn('ffmpeg', [
+    '-i', 'pipe:0',
+    '-f', 'mp4',
+    '-movflags', 'frag_keyframe+empty_moov',
+    '-loglevel', 'quiet',
+    'pipe:1'
+  ]);
+
+  ytDlp.stdout.pipe(ffmpeg.stdin);
+  ffmpeg.stdout.pipe(res);
+
+  ytDlp.stderr.on('data', data => console.error('yt-dlp error:', data.toString()));
+  ffmpeg.stderr.on('data', data => console.error('ffmpeg error:', data.toString()));
+
+  ytDlp.on('error', err => {
+    console.error('yt-dlp failed:', err);
+    res.status(500).end('yt-dlp error');
   });
-});
 
-app.listen(3000, () => {
-  console.log('✅ YouTube Downloader running on port 3000');
+  ffmpeg.on('error', err => {
+    console.error('ffmpeg failed:', err);
+    res.status(500).end('ffmpeg error');
+  });
 });
