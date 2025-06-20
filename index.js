@@ -3,6 +3,7 @@ const cors = require('cors');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const igDownloader = require('./ig-dd'); // ✅ Added for Instagram
 
 const app = express();
 app.use(cors());
@@ -31,6 +32,8 @@ app.post('/download', async (req, res) => {
     });
   });
 });
+
+app.use('/', igDownloader); // ✅ Mount Instagram endpoint
 
 app.listen(3000, () => {
   console.log('✅ YouTube Downloader running on port 3000');
