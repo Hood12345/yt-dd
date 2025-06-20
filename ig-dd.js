@@ -26,7 +26,7 @@ router.post('/download-instagram', async (req, res) => {
     }
 
     res.download(filePath, "instagram_video.mp4", (err) => {
-      fs.unlink(filePath, () => {});
+      fs.unlink(filePath, () => {}); // Clean up after sending
     });
   });
 });
