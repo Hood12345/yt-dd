@@ -1,14 +1,3 @@
-const express = require('express');
-const cors = require('cors');
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const igDownloader = require('./ig-dd'); // ✅ Instagram support
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
 app.post('/download', async (req, res) => {
   const { url } = req.body;
   const cookieHeader = req.headers['cookie'];
@@ -20,10 +9,11 @@ app.post('/download', async (req, res) => {
   const fileName = `video_${Date.now()}.mp4`;
   const filePath = path.join(__dirname, fileName);
 
-  // Optional cookies.txt generation
+  // Write a properly formatted cookies.txt file
   let cookieFlag = '';
   if (cookieHeader) {
     const cookieFilePath = path.join(__dirname, 'cookies.txt');
+
     const cookieLines = cookieHeader
       .split('; ')
       .map(line => {
@@ -31,9 +21,16 @@ app.post('/download', async (req, res) => {
         if (!key || !value) return '';
         return `.youtube.com\tTRUE\t/\tFALSE\t0\t${key}\t${value}`;
       })
-      .filter(Boolean)
-      .join('\n');
-    fs.writeFileSync(cookieFilePath, cookieLines);
+      .filter(Boolean);
+
+    // Add the required Netscape header
+    const fullCookieText = [
+      '# Netscape HTTP Cookie File',
+      '# This file was generated from an n8n request',
+      ...cookieLines
+    ].join('\n');
+
+    fs.writeFileSync(cookieFilePath, fullCookieText);
     cookieFlag = '--cookies cookies.txt';
   }
 
@@ -41,7 +38,6 @@ app.post('/download', async (req, res) => {
 
   exec(command, (error, stdout, stderr) => {
     if (cookieHeader) {
-      // Clean up cookies file
       fs.unlink(path.join(__dirname, 'cookies.txt'), () => {});
     }
 
@@ -50,13 +46,7 @@ app.post('/download', async (req, res) => {
     }
 
     res.download(filePath, fileName, () => {
-      fs.unlink(filePath, () => {}); // Clean up video file
+      fs.unlink(filePath, () => {});
     });
   });
-});
-
-app.use('/', igDownloader);
-
-app.listen(3000, () => {
-  console.log('✅ YouTube Downloader running on port 3000');
 });
