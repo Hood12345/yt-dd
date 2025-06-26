@@ -1,3 +1,13 @@
+const express = require('express');
+const cors = require('cors');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 app.post('/download', async (req, res) => {
   const { url } = req.body;
   const cookieHeader = req.headers['cookie'];
@@ -9,7 +19,6 @@ app.post('/download', async (req, res) => {
   const fileName = `video_${Date.now()}.mp4`;
   const filePath = path.join(__dirname, fileName);
 
-  // Write a properly formatted cookies.txt file
   let cookieFlag = '';
   if (cookieHeader) {
     const cookieFilePath = path.join(__dirname, 'cookies.txt');
@@ -23,10 +32,9 @@ app.post('/download', async (req, res) => {
       })
       .filter(Boolean);
 
-    // Add the required Netscape header
     const fullCookieText = [
       '# Netscape HTTP Cookie File',
-      '# This file was generated from an n8n request',
+      '# This file was generated from n8n headers',
       ...cookieLines
     ].join('\n');
 
@@ -49,4 +57,8 @@ app.post('/download', async (req, res) => {
       fs.unlink(filePath, () => {});
     });
   });
+});
+
+app.listen(3000, () => {
+  console.log('✅ YouTube Downloader running on port 3000');
 });
