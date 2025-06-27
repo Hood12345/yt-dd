@@ -42,7 +42,8 @@ app.post('/download', async (req, res) => {
     cookieFlag = '--cookies cookies.txt';
   }
 
-  const command = `yt-dlp ${cookieFlag} -f "bv*+ba/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
+  // Use yt-dlp with PO Token plugin
+  const command = `yt-dlp ${cookieFlag} --extractor-args "youtube:player-client=mweb" --plugin ytdlp_pot_provider -f "bv*+ba/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
 
   exec(command, (error, stdout, stderr) => {
     if (cookieHeader) {
