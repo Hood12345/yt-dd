@@ -1,29 +1,24 @@
 FROM node:20
 
-# Install Python, pip, ffmpeg, git, curl
+# Install Python, pip, ffmpeg, git
 RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg git curl
 
-# Install yt-dlp (stable)
+# Install yt-dlp
 RUN pip3 install -U yt-dlp --break-system-packages
 
-# Install yt-dlp PO Token plugin and its dependencies
-RUN pip3 install --break-system-packages git+https://github.com/Brainicism/yt-dlp-pot-provider.git
+# Clone and install PO Token provider
+RUN git clone https://github.com/Brainicism/yt-dlp-pot-provider.git /tmp/yt-dlp-pot-provider && \
+    pip3 install --break-system-packages /tmp/yt-dlp-pot-provider && \
+    rm -rf /tmp/yt-dlp-pot-provider
 
-# Install bgutils (required by yt-dlp-pot-provider plugin)
+# Install bgutils (required for token generation)
 RUN curl -fsSL https://bgutils.brainicism.com/install.sh | bash
 
-# Ensure plugin is discoverable (optional but safe)
-ENV YTDLP_PLUGINS_DIR=/usr/local/lib/python3.*/dist-packages
-
-# Set working directory
 WORKDIR /app
-
-# Install Node.js dependencies
 COPY package*.json ./
 RUN npm install
-
-# Copy all files
 COPY . .
 
 EXPOSE 3000
 CMD ["node", "index.js"]
+
