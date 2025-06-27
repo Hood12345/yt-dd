@@ -42,8 +42,8 @@ app.post('/download', async (req, res) => {
     cookieFlag = '--cookies cookies.txt';
   }
 
-  // Updated yt-dlp command using PO Token HTTP provider
-  const command = `yt-dlp ${cookieFlag} --extractor-args "youtubepot-bgutilhttp" -f "bv*+ba/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
+  // ✅ Corrected yt-dlp command using PO Token HTTP provider
+  const command = `yt-dlp ${cookieFlag} --extractor-args "youtube:player-client=mweb,youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416" -f "bv*+ba/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
 
   exec(command, (error, stdout, stderr) => {
     if (cookieHeader) {
