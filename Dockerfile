@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg git curl
 RUN pip3 install -U yt-dlp --break-system-packages
 
 # Install yt-dlp PO Token plugin and its dependencies
-RUN pip3 install -U yt-dlp-pot-provider
+RUN pip3 install -U yt-dlp-pot-provider --break-system-packages
 
 # Install bgutils (required by yt-dlp-pot-provider plugin)
 RUN curl -fsSL https://bgutils.brainicism.com/install.sh | bash
